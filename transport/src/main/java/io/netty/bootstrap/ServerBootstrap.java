@@ -67,6 +67,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     /**
      * Specify the {@link EventLoopGroup} which is used for the parent (acceptor) and the child (client).
+     * 设置2个Reactor线程池：parent (acceptor) and the child (client)
      */
     @Override
     public ServerBootstrap group(EventLoopGroup group) {
@@ -129,6 +130,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     /**
      * Set the {@link ChannelHandler} which is used to serve the request for the {@link Channel}'s.
+     * 设置并配置childHandler
      */
     public ServerBootstrap childHandler(ChannelHandler childHandler) {
         if (childHandler == null) {
@@ -146,13 +148,18 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return childGroup;
     }
 
+    /**
+     * 初始化channel:主要就是往channel中配置options、attrs、handler等
+     */
     @Override
     void init(Channel channel) throws Exception {
+        // 1、获取配置的options，并向channel中配置options
         final Map<ChannelOption<?>, Object> options = options();
         synchronized (options) {
             channel.config().setOptions(options);
         }
 
+        // 2、获取配置的attrs，并向channel中配置attrs
         final Map<AttributeKey<?>, Object> attrs = attrs();
         synchronized (attrs) {
             for (Entry<AttributeKey<?>, Object> e: attrs.entrySet()) {
@@ -162,13 +169,14 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             }
         }
 
+        // 3、创建channelPipeline，并向channel管道中添加handler；注意：这里的handler是`.handler(new LoggingHandler(LogLevel.INFO))`,而不是`.childHandler(new ChannelInitializer<SocketChannel>())`
         ChannelPipeline p = channel.pipeline();
         if (handler() != null) {
             p.addLast(handler());
         }
 
-        final EventLoopGroup currentChildGroup = childGroup;
-        final ChannelHandler currentChildHandler = childHandler;
+        final EventLoopGroup currentChildGroup = childGroup;  // workerGroup线程组
+        final ChannelHandler currentChildHandler = childHandler;  // .childHandler()中创建的handler
         final Entry<ChannelOption<?>, Object>[] currentChildOptions;
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs;
         synchronized (childOptions) {
@@ -178,11 +186,11 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             currentChildAttrs = childAttrs.entrySet().toArray(newAttrArray(childAttrs.size()));
         }
 
+        // 3、向channel管道中添加handler；注意：这里的handler是`.childHandler(new ChannelInitializer<SocketChannel>())`
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(Channel ch) throws Exception {
-                ch.pipeline().addLast(new ServerBootstrapAcceptor(
-                        currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
+                ch.pipeline().addLast(new ServerBootstrapAcceptor(currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
             }
         });
     }
@@ -193,6 +201,8 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         if (childHandler == null) {
             throw new IllegalStateException("childHandler not set");
         }
+
+        //由`b.group(bossGroup, workerGroup)`时设置和绑定线程组时、可以知道这里的childGroup指的就是workerGroup;如果childGroup没有指定，会使用bossGroup
         if (childGroup == null) {
             logger.warn("childGroup is not set. Using parentGroup instead.");
             childGroup = group();

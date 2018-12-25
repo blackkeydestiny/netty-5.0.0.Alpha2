@@ -29,6 +29,7 @@ import java.net.NetworkInterface;
  * to.
  *
  * @param <T>   the type of the value which is valid for the {@link ChannelOption}
+ * T 指的是`ChannelOption`有效值的数据类型：Integer、Boolean、InetAddress等
  */
 public final class ChannelOption<T> extends AbstractConstant<ChannelOption<T>> {
 

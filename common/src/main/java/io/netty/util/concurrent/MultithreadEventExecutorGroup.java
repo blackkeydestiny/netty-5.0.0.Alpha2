@@ -46,13 +46,8 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
      *                                  should be used.
      * @param args                      arguments which will passed to each {@link #newChild(Executor, Object...)} call.
      */
-    protected MultithreadEventExecutorGroup(int nEventExecutors,
-                                            ExecutorServiceFactory executorServiceFactory,
-                                            Object... args) {
-        this(nEventExecutors, executorServiceFactory != null
-                                ? executorServiceFactory.newExecutorService(nEventExecutors)
-                                : null,
-             true, args);
+    protected MultithreadEventExecutorGroup(int nEventExecutors, ExecutorServiceFactory executorServiceFactory, Object... args) {
+        this(nEventExecutors, executorServiceFactory != null ? executorServiceFactory.newExecutorService(nEventExecutors) : null, true, args);
     }
 
     /**
@@ -68,10 +63,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         this(nEventExecutors, executor, false, args);
     }
 
-    private MultithreadEventExecutorGroup(int nEventExecutors,
-                                          Executor executor,
-                                          boolean shutdownExecutor,
-                                          Object... args) {
+    private MultithreadEventExecutorGroup(int nEventExecutors, Executor executor, boolean shutdownExecutor, Object... args) {
         if (nEventExecutors <= 0) {
             throw new IllegalArgumentException(
                     String.format("nEventExecutors: %d (expected: > 0)", nEventExecutors));

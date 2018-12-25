@@ -72,7 +72,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
-     * The {@link EventLoopGroup} which is used to handle all the events for the to-be-creates
+     * The {@link EventLoopGroup} which is used to handle all the events for the to-be-creates(用于处理要创建的所有事件)
      * {@link Channel}
      */
     @SuppressWarnings("unchecked")
@@ -202,13 +202,15 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     /**
      * Validate all the parameters. Sub-classes may override this, but should
-     * call the super method in that case.
+     * call the super method in that case.(验证所有参数。 子类可以覆盖它，但在这种情况下应该调用super方法)
      */
     @SuppressWarnings("unchecked")
     public B validate() {
+        // 由`b.group(bossGroup, workerGroup)`时设置和绑定线程组时、可以知道这里的group指的就是bossGroup
         if (group == null) {
             throw new IllegalStateException("group not set");
         }
+        //
         if (channelFactory == null) {
             throw new IllegalStateException("channel or channelFactory not set");
         }
@@ -269,6 +271,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * Create a new {@link Channel} and bind it.
      */
     public ChannelFuture bind(SocketAddress localAddress) {
+        // 验证this.group和this.channelFactory
         validate();
         if (localAddress == null) {
             throw new NullPointerException("localAddress");
@@ -277,19 +280,21 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
+
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
+
         if (regFuture.cause() != null) {
             return regFuture;
         }
 
         if (regFuture.isDone()) {
-            // At this point we know that the registration was complete and successful.
+            // At this point we know that the registration was complete and successful.(此时，我们知道注册已完成且成功)
             ChannelPromise promise = channel.newPromise();
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
-            // Registration future is almost always fulfilled already, but just in case it's not.
+            // Registration future is almost always fulfilled already, but just in case it's not.(Registration future几乎总是已经实现，但万一它不是)
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
             regFuture.addListener(new ChannelFutureListener() {
                 @Override
@@ -298,9 +303,10 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
                     if (cause != null) {
                         // Registration on the EventLoop failed so fail the ChannelPromise directly to not cause an
                         // IllegalStateException once we try to access the EventLoop of the Channel.
+                        // 在EventLoop上注册失败，因此一旦我们尝试访问Channel的EventLoop，ChannelPromise就会直接失败，不会导致IllegalStateException
                         promise.setFailure(cause);
                     } else {
-                        // Registration was successful, so set the correct executor to use.
+                        // Registration was successful, so set the correct executor to use.(注册成功，因此请设置正确的执行程序以供使用)
                         // See https://github.com/netty/netty/issues/2586
                         promise.executor = channel.eventLoop();
                     }
@@ -312,16 +318,25 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     final ChannelFuture initAndRegister() {
+        // 1、利用channelFactory创建了channel实例
         final Channel channel = channelFactory().newChannel();
+
+        // 2、init(channel)是一个抽象方法，具体又子类实现：Server端ServerBootstrap和Client端Bootstrap的init()方法实现
         try {
             init(channel);
         } catch (Throwable t) {
+            // 3、如果init出现异常，则强制关闭channel
             channel.unsafe().closeForcibly();
-            // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
+            // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor(由于Channel尚未注册，我们需要强制使用GlobalEventExecutor)
             return new DefaultChannelPromise(channel, GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
+        // 4、把chnnel注册到bossGroup线程组中去，group()返回的正是bossGroup线程组：
+        // 将channel注册到bossGroup线程组中的next线程(NioEventLoop)中去，这里最终调用的是SingleThreadEventLoop的register() --> AbstractChannel的register() --> register0()
+        // --> AbstractNioChannel的doRegister() ——> javaChannel().register(((NioEventLoop) eventLoop().unwrap()).selector, 0, this);
         ChannelFuture regFuture = group().register(channel);
+
+        // 5、
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
                 channel.close();
@@ -349,7 +364,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             final SocketAddress localAddress, final ChannelPromise promise) {
 
         // This method is invoked before channelRegistered() is triggered.  Give user handlers a chance to set up
-        // the pipeline in its channelRegistered() implementation.
+        // the pipeline in its channelRegistered() implementation.(在触发channelRegistered（）之前调用此方法。 为用户处理程序提供在其channelRegistered（）实现中设置管道的机会)
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {
@@ -364,6 +379,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     /**
      * the {@link ChannelHandler} to use for serving the requests.
+     * ServerBootstrap的.handler()方法、而不是.childHandler()方法
      */
     @SuppressWarnings("unchecked")
     public B handler(ChannelHandler handler) {
@@ -383,6 +399,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return channelFactory;
     }
 
+    // 返回的是ServerBootstrap的.handler()方法配置的handler对象、而不是.childHandler()方法配置的handler对象
     final ChannelHandler handler() {
         return handler;
     }

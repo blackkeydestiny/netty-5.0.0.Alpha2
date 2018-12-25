@@ -27,6 +27,7 @@ import java.util.concurrent.Executor;
 
 /**
  * A {@link MultithreadEventLoopGroup} implementation which is used for NIO {@link Selector} based {@link Channel}s.
+ * 类`MultithreadEventLoopGroup`的实现类(继承类),用于基于`Channel` 的NIO `Selector`
  */
 public class NioEventLoopGroup extends MultithreadEventLoopGroup {
 
@@ -110,8 +111,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
      *                                 default should be used.
      * @param selectorProvider  the {@link SelectorProvider} to use. This value must not be {@code null}.
      */
-    public NioEventLoopGroup(
-            int nEventLoops, ExecutorServiceFactory executorServiceFactory, final SelectorProvider selectorProvider) {
+    public NioEventLoopGroup(int nEventLoops, ExecutorServiceFactory executorServiceFactory, final SelectorProvider selectorProvider) {
         super(nEventLoops, executorServiceFactory, selectorProvider);
     }
 
